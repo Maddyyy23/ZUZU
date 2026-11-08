@@ -81,7 +81,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { PageFlip } from "page-flip";
+import { PageFlip, SizeType } from "page-flip";
 import Image from "next/image";
 import Draggable from "react-draggable";
 import DraggableItem from "./DragItem";
@@ -103,7 +103,7 @@ export default function Book() {
       pageFlip = new PageFlip(book, {
         width: 600,
         height: 500,
-        size: "stretch",
+        size: SizeType.STRETCH,
         minWidth: 180,
         maxWidth: 600,
         minHeight: 150,
