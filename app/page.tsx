@@ -7,7 +7,7 @@ import Image from "next/image";
 
 export default function Home() {
   return (
-    <div className="flex overflow-hidden flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
+    <div className="flex min-h-[100dvh] w-full overflow-hidden flex-col items-center justify-center bg-zinc-50 font-sans dark:bg-black">
       <Book />
       {/* <DragPlane /> */}
      

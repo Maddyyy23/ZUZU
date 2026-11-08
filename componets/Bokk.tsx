@@ -101,13 +101,18 @@ export default function Book() {
       if (pages.length === 0) return;
 
       pageFlip = new PageFlip(book, {
-        width: 400,
+        width: 600,
         height: 500,
-        autoSize: false,
+        size: "stretch",
+        minWidth: 180,
+        maxWidth: 600,
+        minHeight: 150,
+        maxHeight: 500,
+        autoSize: true,
         showCover: true,
         drawShadow: true,
         maxShadowOpacity: 0.5,
-        usePortrait: false,
+        usePortrait: true,
         startPage: 0,
       });
 
@@ -121,13 +126,14 @@ export default function Book() {
   }, []);
 
   return (
-    <div ref={bookRef}>
-      {/* Front Cover */}
-      <div
-        className="book-page bg-blue-700 text-white"
-        data-density="hard"
-        style={{ width: 200, height: 700 }}
-      >
+    <div className="book-stage">
+      <div ref={bookRef} className="book-container">
+        {/* Front Cover */}
+        <div
+          className="book-page bg-blue-700 text-white"
+          data-density="hard"
+          style={{ width: 600, height: 500 }}
+        >
         <Image
           // src="/frontr.png"
           src="/pages/front.png"
@@ -691,6 +697,7 @@ export default function Book() {
           draggable={false}
           className="object-contain scale-130 translate-x-3 pointer-events-none select-none"
         ></Image>
+        </div>
       </div>
     </div>
   );
