@@ -36,8 +36,5 @@ jobs:
         with:
           name: Page-Flip-Android-APK
           path: android/app/build/outputs/apk/debug/app-debug.apk
-<<<<<<< HEAD
           retention-days: 7
-=======
           if-no-files-found: error
->>>>>>> 8572b1a5a71bc99a618f226ea96331bdfa070969
