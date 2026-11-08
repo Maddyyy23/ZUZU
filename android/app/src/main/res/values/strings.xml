@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Page Flip</string>
+    <string name="title_activity_main">Page Flip</string>
+    <string name="package_name">com.sujal661.pageflip</string>
+    <string name="custom_url_scheme">com.sujal661.pageflip</string>
+</resources>
