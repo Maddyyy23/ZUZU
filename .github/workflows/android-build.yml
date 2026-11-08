@@ -1,49 +1,43 @@
 name: Build Android APK
-
 on:
   push:
     branches: [main]
   workflow_dispatch:
-
 jobs:
   build-apk:
     runs-on: ubuntu-latest
     steps:
       - name: Check out project
         uses: actions/checkout@v4
-
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
-
       - name: Set up Java
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "21"
           cache: gradle
-
       - name: Set up Android SDK
         uses: android-actions/setup-android@v4
-
       - name: Install Android SDK packages
         run: sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0"
-
       - name: Install packages
         run: npm ci
-
       - name: Build and sync offline app
         run: npm run mobile:sync
-
       - name: Build installable debug APK
-        run: ./gradlew assembleDebug
+        run: bash ./gradlew assembleDebug
         working-directory: android
-
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: Page-Flip-Android-APK
           path: android/app/build/outputs/apk/debug/app-debug.apk
+<<<<<<< HEAD
           retention-days: 7
+=======
+          if-no-files-found: error
+>>>>>>> 8572b1a5a71bc99a618f226ea96331bdfa070969
