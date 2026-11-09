@@ -35,9 +35,10 @@ export default function Book() {
         200,
         Math.floor(Math.min(availW, availH * (SPREAD_W / PAGE_H), SPREAD_W))
       );
-      const h = Math.round((w * PAGE_H) / SPREAD_W);
+      // Only the width is set. page-flip (autoSize) derives the height from it
+      // using the 1200:500 ratio, so the two can never disagree.
       book.style.width = `${w}px`;
-      book.style.height = `${h}px`;
+      book.style.maxWidth = `${w}px`;
       book.style.setProperty("--book-scale", String(w / SPREAD_W));
     };
 
@@ -57,13 +58,13 @@ export default function Book() {
       const pages = book.querySelectorAll<HTMLElement>(".book-page");
       if (pages.length === 0) return;
 
-      applySize();
       pageFlip = new PageFlip(book, {
         width: PAGE_W,
         height: PAGE_H,
         size: SizeType.STRETCH,
-        // The container is sized by applySize(); the library only fits to it.
-        autoSize: false,
+        // autoSize makes the library size its inner wrapper from the container
+        // width (without it the wrapper has zero height and the pages vanish).
+        autoSize: true,
         minWidth: 100,
         maxWidth: PAGE_W,
         minHeight: 100,
@@ -77,6 +78,10 @@ export default function Book() {
       });
 
       pageFlip.loadFromHTML(pages);
+      // The library sets width:100% on the container when it starts; put our
+      // fitted width back and let it re-measure.
+      applySize();
+      pageFlip.update();
     }, 0);
 
     window.addEventListener("resize", onResize);
