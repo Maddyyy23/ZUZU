@@ -1,96 +1,53 @@
-// "use client";
-// import React from "react";
-// import { PageFlip } from "page-flip";
-// import { useEffect, useRef } from "react";
-
-// const Book = () => {
-//   const bookref = useRef<HTMLDivElement>(null);
-
-//   useEffect(() => {
-//     if (!bookref.current) return;
-
-//     const pageFlip = new PageFlip(bookref.current, {
-//       height: 500,
-//       width: 600,
-//       showCover: true,
-//        maxShadowOpacity: 0.5,
-//   drawShadow: true,
-//   autoSize: false,
-
-//     });
-
-//     pageFlip.loadFromHTML(bookref.current.querySelectorAll(".book-page"));
-
-//     return () => {
-//       pageFlip.destroy();
-//     };
-//   }, []);
-//   return (
-//     <div  ref={bookref}>
-//       <div
-
-//         className=" bg-amber-50 text-black book-page"
-//   data-density="hard"
-//   style={{ width: 600, height: 500 }}
-
-//       >
-//         first page
-//       </div>
-
-//       <div
-//         className="book-page bg-amber-50 text-black flex items-center justify-center border"
-//         style={{ width: "600px", height: "500px" }}
-//       >
-//         1
-//       </div>
-
-//       <div
-//         className="book-page bg-amber-50 text-black flex items-center justify-center border"
-//         style={{ width: "600px", height: "500px" }}
-//       >
-//         2
-//       </div>
-
-//       <div
-//         className="book-page bg-amber-50  text-black flex items-center justify-center border"
-//         style={{ width: "600px", height: "500px" }}
-//       >
-//         3
-//       </div>
-
-//        <div
-//         className="book-page bg-amber-50  text-black flex items-center justify-center border"
-//         style={{ width: "600px", height: "500px" }}
-//       >
-//         4
-//       </div>
-
-//       <div
-//        className="bg-amber-50 text-black book-page"
-//   data-density="hard"
-//   style={{ width: 600, height: 500 }}
-//       >
-//         Last page
-//       </div>
-//     </div>
-//   );
-// };
-
-// export default Book;
-
 "use client";
 
 import { useEffect, useRef } from "react";
 import { PageFlip, SizeType } from "page-flip";
 import Image from "next/image";
-import Draggable from "react-draggable";
-import DraggableItem from "./DragItem";
+
+// Every page is designed at this fixed size (what you see on the PC).
+const PAGE_W = 600;
+const PAGE_H = 500;
+const SPREAD_W = PAGE_W * 2; // two pages open = 1200 x 500
 
 export default function Book() {
+  const stageRef = useRef<HTMLDivElement>(null);
   const bookRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let pageFlip: PageFlip | undefined;
+
+    // Size the book to fit the screen while keeping the exact 1200:500
+    // proportions, and tell the pages how much to scale their content.
+    const applySize = () => {
+      const stage = stageRef.current;
+      const book = bookRef.current;
+      if (!stage || !book) return;
+      const cs = getComputedStyle(stage);
+      const availW =
+        stage.clientWidth -
+        parseFloat(cs.paddingLeft) -
+        parseFloat(cs.paddingRight);
+      const availH =
+        stage.clientHeight -
+        parseFloat(cs.paddingTop) -
+        parseFloat(cs.paddingBottom);
+      const w = Math.max(
+        200,
+        Math.floor(Math.min(availW, availH * (SPREAD_W / PAGE_H), SPREAD_W))
+      );
+      const h = Math.round((w * PAGE_H) / SPREAD_W);
+      book.style.width = `${w}px`;
+      book.style.height = `${h}px`;
+      book.style.setProperty("--book-scale", String(w / SPREAD_W));
+    };
+
+    const onResize = () => {
+      applySize();
+      pageFlip?.update();
+    };
+
+    applySize();
+
     // Defer setup so React Strict Mode's development-only effect replay can
     // cancel the first attempt before StPageFlip rearranges the page elements.
     const setupTimer = window.setTimeout(() => {
@@ -100,33 +57,42 @@ export default function Book() {
       const pages = book.querySelectorAll<HTMLElement>(".book-page");
       if (pages.length === 0) return;
 
+      applySize();
       pageFlip = new PageFlip(book, {
-        width: 600,
-        height: 500,
+        width: PAGE_W,
+        height: PAGE_H,
         size: SizeType.STRETCH,
-        minWidth: 360,
-        maxWidth: 600,
-        minHeight: 300,
-        maxHeight: 500,
-        autoSize: true,
+        // The container is sized by applySize(); the library only fits to it.
+        autoSize: false,
+        minWidth: 100,
+        maxWidth: PAGE_W,
+        minHeight: 100,
+        maxHeight: PAGE_H,
         showCover: true,
         drawShadow: true,
         maxShadowOpacity: 0.5,
-        usePortrait: true,
+        usePortrait: false, // always show the two-page spread, like on PC
+        mobileScrollSupport: false,
         startPage: 0,
       });
 
       pageFlip.loadFromHTML(pages);
     }, 0);
 
+    window.addEventListener("resize", onResize);
+    window.addEventListener("orientationchange", onResize);
+
     return () => {
       window.clearTimeout(setupTimer);
+      window.removeEventListener("resize", onResize);
+      window.removeEventListener("orientationchange", onResize);
       pageFlip?.destroy();
     };
   }, []);
 
+  
   return (
-    <div className="book-stage">
+    <div ref={stageRef} className="book-stage">
       <div ref={bookRef} className="book-container">
         {/* Front Cover */}
         <div
@@ -134,6 +100,7 @@ export default function Book() {
           data-density="hard"
           style={{ width: 600, height: 500 }}
         >
+        <div className="page-inner">
         <Image
           // src="/frontr.png"
           src="/pages/front.png"
@@ -145,6 +112,7 @@ export default function Book() {
         ></Image>
 
         <div className="flex h-full items-center justify-center text-5xl font-bold"></div>
+        </div>
       </div>
 
       {/* Page 1 */}
@@ -152,6 +120,7 @@ export default function Book() {
         className="  book-page bg-amber-50 text-black"
         style={{ width: 600, height: 500 }}
       >
+        <div className="page-inner">
         {/* <div className="flex h-full items-center justify-center text-4xl">
           Page 1
         </div> */}
@@ -236,6 +205,7 @@ export default function Book() {
           draggable={false}
           className="object-contain scale-45   translate-x-10 translate-y-15 "
         ></Image>
+        </div>
       </div>
 
       {/* Page 2 */}
@@ -243,6 +213,7 @@ export default function Book() {
         className="relative overflow-hidden book-page bg-amber-50 text-black"
         style={{ width: 600, height: 500 }}
       >
+        <div className="page-inner">
         {/* <div className="flex h-full items-center justify-center text-4xl">
           Page 2
         </div> */}
@@ -326,6 +297,7 @@ export default function Book() {
           draggable={false}
           className="object-contain shadow-black rotate-0 -translate-x-13 -translate-y-16  scale-60   "
         ></Image>
+        </div>
       </div>
 
       {/* Page 3 */}
@@ -333,6 +305,7 @@ export default function Book() {
         className="relative overflow-hidden book-page bg-amber-50 text-black"
         style={{ width: 600, height: 500 }}
       >
+        <div className="page-inner">
         {/* <div className="flex h-full items-center justify-center text-4xl">
           Page 3
         </div> */}
@@ -433,6 +406,7 @@ export default function Book() {
           draggable={false}
           className="object-contain scale-19 rotate-0 z-50 translate-x-10 translate-y-24"
         />
+        </div>
       </div>
 
       {/* Page 4 */}
@@ -440,6 +414,7 @@ export default function Book() {
         className="relative overflow-hidden book-page bg-amber-50 text-black"
         style={{ width: 600, height: 500 }}
       >
+        <div className="page-inner">
         <Image
           src="/pages/right.jpg"
           alt="Front Cover"
@@ -511,6 +486,7 @@ export default function Book() {
           draggable={false}
           className="object-contain scale-48  rotate-18 z-50 translate-x-28 translate-y-4 "
         />
+        </div>
       </div>
 
       {/* Page 5 */}
@@ -518,6 +494,7 @@ export default function Book() {
         className="relative overflow-hidden book-page bg-amber-50 text-black"
         style={{ width: 600, height: 500 }}
       >
+        <div className="page-inner">
         <Image
           src="/pages/left.jpg"
           alt="Front Cover"
@@ -607,6 +584,7 @@ export default function Book() {
           draggable={false}
           className="object-contain scale-48  rotate-0 z-50 -translate-x-22 -translate-y-48 "
         />
+        </div>
       </div>
 
       {/* Page 6 */}
@@ -614,6 +592,7 @@ export default function Book() {
         className="relative overflow-hidden book-page bg-amber-50 text-black"
         style={{ width: 600, height: 500 }}
       >
+        <div className="page-inner">
         <Image
           src="/pages/right.jpg"
           alt="Front Cover"
@@ -677,6 +656,7 @@ export default function Book() {
           draggable={false}
           className="object-contain scale-58  rotate-0 z-50 -translate-x-17 translate-y-40 "
         />
+        </div>
       </div>
 
       {/* Back Cover */}
@@ -685,6 +665,7 @@ export default function Book() {
         data-density="hard"
         style={{ width: 600, height: 500 }}
       >
+        <div className="page-inner">
         {/* <div className="flex h-full items-center justify-center text-5xl font-bold">
           Back Cover
         </div> */}
@@ -697,6 +678,7 @@ export default function Book() {
           draggable={false}
           className="object-contain scale-130 translate-x-3 pointer-events-none select-none"
         ></Image>
+        </div>
         </div>
       </div>
     </div>
