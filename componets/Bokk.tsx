@@ -1,111 +1,31 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import { PageFlip, SizeType } from "page-flip";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 
-// Every page is designed at this fixed size (what you see on the PC).
+/*
+ * Scrapbook book.
+ *
+ * - Every page is designed at 600x500 and is never resized; the whole book is
+ *   scaled to fit the screen, so it looks identical on PC and phone.
+ * - Landscape: two pages side by side like an open book. The front and back
+ *   covers are shown alone (centred).
+ * - Portrait: one page at a time.
+ * - Turn pages by tapping the left/right half of the screen or by swiping.
+ */
+
 const PAGE_W = 600;
 const PAGE_H = 500;
-const SPREAD_W = PAGE_W * 2; // two pages open = 1200 x 500
+const LAST = 7; // 8 pages: front cover, 6 inner pages, back cover
+const LEAVES = 4; // a leaf = one sheet of paper (2 pages: front + back)
+const FLIP_MS = 800;
 
-export default function Book() {
-  const stageRef = useRef<HTMLDivElement>(null);
-  const bookRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    let pageFlip: PageFlip | undefined;
-
-    // Size the book to fit the screen while keeping the exact 1200:500
-    // proportions, and tell the pages how much to scale their content.
-    const applySize = () => {
-      const stage = stageRef.current;
-      const book = bookRef.current;
-      if (!stage || !book) return;
-      const cs = getComputedStyle(stage);
-      const availW =
-        stage.clientWidth -
-        parseFloat(cs.paddingLeft) -
-        parseFloat(cs.paddingRight);
-      const availH =
-        stage.clientHeight -
-        parseFloat(cs.paddingTop) -
-        parseFloat(cs.paddingBottom);
-      const w = Math.max(
-        200,
-        Math.floor(Math.min(availW, availH * (SPREAD_W / PAGE_H), SPREAD_W))
-      );
-      // Only the width is set. page-flip (autoSize) derives the height from it
-      // using the 1200:500 ratio, so the two can never disagree.
-      book.style.width = `${w}px`;
-      book.style.maxWidth = `${w}px`;
-      book.style.setProperty("--book-scale", String(w / SPREAD_W));
-    };
-
-    const onResize = () => {
-      applySize();
-      pageFlip?.update();
-    };
-
-    applySize();
-
-    // Defer setup so React Strict Mode's development-only effect replay can
-    // cancel the first attempt before StPageFlip rearranges the page elements.
-    const setupTimer = window.setTimeout(() => {
-      const book = bookRef.current;
-      if (!book) return;
-
-      const pages = book.querySelectorAll<HTMLElement>(".book-page");
-      if (pages.length === 0) return;
-
-      pageFlip = new PageFlip(book, {
-        width: PAGE_W,
-        height: PAGE_H,
-        size: SizeType.STRETCH,
-        // autoSize makes the library size its inner wrapper from the container
-        // width (without it the wrapper has zero height and the pages vanish).
-        autoSize: true,
-        minWidth: 100,
-        maxWidth: PAGE_W,
-        minHeight: 100,
-        maxHeight: PAGE_H,
-        showCover: true,
-        drawShadow: true,
-        maxShadowOpacity: 0.5,
-        usePortrait: false, // always show the two-page spread, like on PC
-        mobileScrollSupport: false,
-        startPage: 0,
-      });
-
-      pageFlip.loadFromHTML(pages);
-      // The library sets width:100% on the container when it starts; put our
-      // fitted width back and let it re-measure.
-      applySize();
-      pageFlip.update();
-    }, 0);
-
-    window.addEventListener("resize", onResize);
-    window.addEventListener("orientationchange", onResize);
-
-    return () => {
-      window.clearTimeout(setupTimer);
-      window.removeEventListener("resize", onResize);
-      window.removeEventListener("orientationchange", onResize);
-      pageFlip?.destroy();
-    };
-  }, []);
-
-  
-  return (
-    <div ref={stageRef} className="book-stage">
-      <div ref={bookRef} className="book-container">
-        {/* Front Cover */}
+const PAGES: React.ReactNode[] = [
         <div
-          className="book-page bg-blue-700 text-white"
+          className="relative book-page bg-blue-700 text-white"
           data-density="hard"
           style={{ width: 600, height: 500 }}
         >
-        <div className="page-inner">
         <Image
           // src="/frontr.png"
           src="/pages/front.png"
@@ -117,15 +37,12 @@ export default function Book() {
         ></Image>
 
         <div className="flex h-full items-center justify-center text-5xl font-bold"></div>
-        </div>
-      </div>
+      </div>,
 
-      {/* Page 1 */}
       <div
-        className="  book-page bg-amber-50 text-black"
+        className="relative book-page bg-amber-50 text-black"
         style={{ width: 600, height: 500 }}
       >
-        <div className="page-inner">
         {/* <div className="flex h-full items-center justify-center text-4xl">
           Page 1
         </div> */}
@@ -210,15 +127,12 @@ export default function Book() {
           draggable={false}
           className="object-contain scale-45   translate-x-10 translate-y-15 "
         ></Image>
-        </div>
-      </div>
+      </div>,
 
-      {/* Page 2 */}
       <div
         className="relative overflow-hidden book-page bg-amber-50 text-black"
         style={{ width: 600, height: 500 }}
       >
-        <div className="page-inner">
         {/* <div className="flex h-full items-center justify-center text-4xl">
           Page 2
         </div> */}
@@ -302,15 +216,12 @@ export default function Book() {
           draggable={false}
           className="object-contain shadow-black rotate-0 -translate-x-13 -translate-y-16  scale-60   "
         ></Image>
-        </div>
-      </div>
+      </div>,
 
-      {/* Page 3 */}
       <div
         className="relative overflow-hidden book-page bg-amber-50 text-black"
         style={{ width: 600, height: 500 }}
       >
-        <div className="page-inner">
         {/* <div className="flex h-full items-center justify-center text-4xl">
           Page 3
         </div> */}
@@ -411,15 +322,12 @@ export default function Book() {
           draggable={false}
           className="object-contain scale-19 rotate-0 z-50 translate-x-10 translate-y-24"
         />
-        </div>
-      </div>
+      </div>,
 
-      {/* Page 4 */}
       <div
         className="relative overflow-hidden book-page bg-amber-50 text-black"
         style={{ width: 600, height: 500 }}
       >
-        <div className="page-inner">
         <Image
           src="/pages/right.jpg"
           alt="Front Cover"
@@ -491,15 +399,12 @@ export default function Book() {
           draggable={false}
           className="object-contain scale-48  rotate-18 z-50 translate-x-28 translate-y-4 "
         />
-        </div>
-      </div>
+      </div>,
 
-      {/* Page 5 */}
       <div
         className="relative overflow-hidden book-page bg-amber-50 text-black"
         style={{ width: 600, height: 500 }}
       >
-        <div className="page-inner">
         <Image
           src="/pages/left.jpg"
           alt="Front Cover"
@@ -589,15 +494,12 @@ export default function Book() {
           draggable={false}
           className="object-contain scale-48  rotate-0 z-50 -translate-x-22 -translate-y-48 "
         />
-        </div>
-      </div>
+      </div>,
 
-      {/* Page 6 */}
       <div
         className="relative overflow-hidden book-page bg-amber-50 text-black"
         style={{ width: 600, height: 500 }}
       >
-        <div className="page-inner">
         <Image
           src="/pages/right.jpg"
           alt="Front Cover"
@@ -661,16 +563,13 @@ export default function Book() {
           draggable={false}
           className="object-contain scale-58  rotate-0 z-50 -translate-x-17 translate-y-40 "
         />
-        </div>
-      </div>
+      </div>,
 
-      {/* Back Cover */}
       <div
         className="relative overflow-hidden book-page bg-blue-700 text-white"
         data-density="hard"
         style={{ width: 600, height: 500 }}
       >
-        <div className="page-inner">
         {/* <div className="flex h-full items-center justify-center text-5xl font-bold">
           Back Cover
         </div> */}
@@ -684,8 +583,178 @@ export default function Book() {
           className="object-contain scale-130 translate-x-3 pointer-events-none select-none"
         ></Image>
         </div>
+];
+
+const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n));
+
+export default function Book() {
+  // `page` is the page shown in portrait mode (0..7). In landscape it decides
+  // how many leaves have been turned: ceil(page / 2).
+  const [page, setPage] = useState(0);
+  const [turning, setTurning] = useState<number | null>(null);
+  const [view, setView] = useState({ portrait: false, scale: 1, ready: false });
+  const busy = useRef(false);
+  const touch = useRef<{ x: number; y: number } | null>(null);
+  const viewportRef = useRef({ w: 1, h: 1 });
+
+  // Fit the book to the screen, and react to rotation.
+  useEffect(() => {
+    const fit = () => {
+      const vv = window.visualViewport;
+      const vw = vv?.width ?? window.innerWidth;
+      const vh = vv?.height ?? window.innerHeight;
+      if (!vw || !vh) return;
+      viewportRef.current = { w: vw, h: vh };
+      const portrait = vw < vh;
+      const m = 12;
+      const needW = portrait ? PAGE_W : PAGE_W * 2;
+      const scale = Math.min((vw - m * 2) / needW, (vh - m * 2) / PAGE_H, 1);
+      setView({ portrait, scale: scale > 0 ? scale : 0.3, ready: true });
+    };
+    fit();
+    window.addEventListener("resize", fit);
+    window.addEventListener("orientationchange", fit);
+    window.visualViewport?.addEventListener("resize", fit);
+    // Android can finish rotating a moment after the event fires.
+    const timers = [150, 500, 1200].map((ms) => window.setTimeout(fit, ms));
+    return () => {
+      window.removeEventListener("resize", fit);
+      window.removeEventListener("orientationchange", fit);
+      window.visualViewport?.removeEventListener("resize", fit);
+      timers.forEach((t) => window.clearTimeout(t));
+    };
+  }, []);
+
+  const { portrait, scale, ready } = view;
+  const turned = Math.ceil(page / 2); // leaves already turned (landscape)
+
+  const go = (dir: 1 | -1) => {
+    if (busy.current) return;
+    let nextPage: number;
+    let turningIndex: number;
+    if (portrait) {
+      nextPage = clamp(page + dir, 0, LAST);
+      if (nextPage === page) return;
+      turningIndex = dir === 1 ? page : nextPage;
+    } else {
+      const nextTurned = clamp(turned + dir, 0, LEAVES);
+      if (nextTurned === turned) return;
+      nextPage = nextTurned === 0 ? 0 : nextTurned === LEAVES ? LAST : nextTurned * 2 - 1;
+      turningIndex = dir === 1 ? turned : nextTurned;
+    }
+    busy.current = true;
+    setTurning(turningIndex);
+    setPage(nextPage);
+    window.setTimeout(() => {
+      busy.current = false;
+      setTurning(null);
+    }, FLIP_MS + 40);
+  };
+
+  const onPointerDown = (e: React.PointerEvent) => {
+    touch.current = { x: e.clientX, y: e.clientY };
+  };
+  const onPointerUp = (e: React.PointerEvent) => {
+    const start = touch.current;
+    touch.current = null;
+    if (!start) return;
+    const dx = e.clientX - start.x;
+    const dy = e.clientY - start.y;
+    if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) {
+      go(dx < 0 ? 1 : -1); // swipe left = next page
+    } else if (Math.abs(dx) < 15 && Math.abs(dy) < 15) {
+      const half = viewportRef.current.w / 2;
+      go(e.clientX < half ? -1 : 1); // tap left half = back, right half = next
+    }
+  };
+
+  const ease = `transform ${FLIP_MS}ms cubic-bezier(0.45, 0.05, 0.25, 1)`;
+
+  // Landscape: the closed book is centred, so slide it while covers open/close.
+  const shift = turned === 0 ? -PAGE_W / 2 : turned === LEAVES ? PAGE_W / 2 : 0;
+
+  return (
+    <div
+      className="book-stage"
+      style={{ opacity: ready ? 1 : 0 }}
+      onPointerDown={onPointerDown}
+      onPointerUp={onPointerUp}
+      onPointerCancel={() => (touch.current = null)}
+    >
+      {portrait ? (
+        <div
+          className="book-scaler"
+          style={{
+            width: PAGE_W,
+            height: PAGE_H,
+            marginLeft: -PAGE_W / 2,
+            marginTop: -PAGE_H / 2,
+            transform: `scale(${scale})`,
+          }}
+        >
+          <div className="book-slide">
+            {PAGES.map((content, i) => {
+              const isTurned = page > i;
+              const z = turning === i ? 100 : isTurned ? i : PAGES.length - i;
+              return (
+                <div
+                  key={i}
+                  className="book-single"
+                  style={{
+                    zIndex: z,
+                    transform: `rotateY(${isTurned ? -180 : 0}deg)`,
+                    transition: ease,
+                  }}
+                >
+                  {content}
+                  <div className="book-shade book-shade-right" />
+                </div>
+              );
+            })}
+          </div>
         </div>
-      </div>
+      ) : (
+        <div
+          className="book-scaler"
+          style={{
+            width: PAGE_W * 2,
+            height: PAGE_H,
+            marginLeft: -PAGE_W,
+            marginTop: -PAGE_H / 2,
+            transform: `scale(${scale})`,
+          }}
+        >
+          <div
+            className="book-slide"
+            style={{ transform: `translateX(${shift}px)`, transition: ease }}
+          >
+            {Array.from({ length: LEAVES }).map((_, i) => {
+              const isTurned = turned > i;
+              const z = turning === i ? 100 : isTurned ? i : LEAVES - i;
+              return (
+                <div
+                  key={i}
+                  className="book-leaf"
+                  style={{
+                    zIndex: z,
+                    transform: `rotateY(${isTurned ? -180 : 0}deg)`,
+                    transition: ease,
+                  }}
+                >
+                  <div className="book-face">
+                    {PAGES[i * 2]}
+                    <div className="book-shade book-shade-right" />
+                  </div>
+                  <div className="book-face book-face-back">
+                    {PAGES[i * 2 + 1]}
+                    <div className="book-shade book-shade-left" />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
